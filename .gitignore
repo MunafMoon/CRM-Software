@@ -1,0 +1,13 @@
+node_modules/
+*.tsbuildinfo
+dist/
+.env
+*.log
+coverage/
+playwright-report/
+test-results/
+.dependency-resolve/
+.backups/
+.vercel/
+.env.*
+!.env.example

@@ -1,0 +1,242 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+enum Role {
+  ADMIN
+  SALES
+  MARKETING
+}
+enum ProspectStatus {
+  NEW
+  RESEARCHED
+  CONTACTED
+  FOLLOW_UP
+  REPLIED
+  INTERESTED
+  MEETING_SCHEDULED
+  PROPOSAL_SENT
+  NEGOTIATION
+  WON
+  LOST
+}
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  HOT
+}
+enum FollowUpType {
+  CALL
+  WHATSAPP
+  EMAIL
+  LINKEDIN
+  MEETING
+  OTHER
+}
+enum FollowUpStatus {
+  PENDING
+  COMPLETED
+  MISSED
+}
+enum MeetingType {
+  PHONE
+  GOOGLE_MEET
+  ZOOM
+  OFFICE
+  CLIENT_LOCATION
+}
+enum MeetingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+enum DealStatus {
+  QUALIFIED
+  MEETING
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+}
+enum ClientStatus {
+  ACTIVE
+  INACTIVE
+  COMPLETED
+}
+enum Channel {
+  EMAIL
+  WHATSAPP
+  LINKEDIN
+  PHONE
+  INSTAGRAM
+}
+model User {
+  id String @id @default(uuid())
+  firstName String
+  lastName String
+  email String @unique
+  passwordHash String
+  role Role @default(ADMIN)
+  dailyProspectTarget Int @default(20)
+  dailyFollowUpTarget Int @default(10)
+  dailyMeetingTarget Int @default(2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  prospects Prospect[]
+  activities Activity[]
+  notes Note[]
+  sessions RefreshSession[]
+}
+model RefreshSession {
+  id String @id @default(uuid())
+  tokenHash String @unique
+  userId String
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([userId])
+}
+model Prospect {
+  id String @id @default(uuid())
+  businessName String
+  businessKey String @unique
+  contactPerson String @default("")
+  email String? @unique
+  phone String? @unique
+  whatsapp String @default("")
+  website String? @unique
+  instagram String @default("")
+  linkedin String @default("")
+  businessCategory String
+  city String
+  state String @default("")
+  country String @default("India")
+  source String
+  estimatedValue Decimal @default(0) @db.Decimal(14,2)
+  priority Priority @default(MEDIUM)
+  status ProspectStatus @default(NEW)
+  notes String @default("")
+  assignedTo String
+  assignee User @relation(fields:[assignedTo],references:[id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  activities Activity[]
+  followups FollowUp[]
+  noteEntries Note[]
+  meetings Meeting[]
+  deals Deal[]
+  client Client?
+  outreach Outreach[]
+  @@index([status,priority])
+  @@index([city,businessCategory])
+  @@index([assignedTo,createdAt])
+  @@index([source])
+}
+model Activity {
+  id String @id @default(uuid())
+  prospectId String
+  prospect Prospect @relation(fields:[prospectId],references:[id],onDelete:Cascade)
+  userId String
+  user User @relation(fields:[userId],references:[id])
+  activityType String
+  description String
+  metadata Json @default("{}")
+  createdAt DateTime @default(now())
+  @@index([prospectId,createdAt])
+  @@index([createdAt])
+}
+model FollowUp {
+  id String @id @default(uuid())
+  prospectId String
+  prospect Prospect @relation(fields:[prospectId],references:[id],onDelete:Cascade)
+  date DateTime @db.Date
+  time String
+  type FollowUpType
+  notes String @default("")
+  status FollowUpStatus @default(PENDING)
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status,date])
+  @@index([prospectId])
+}
+model Note {
+  id String @id @default(uuid())
+  prospectId String
+  prospect Prospect @relation(fields:[prospectId],references:[id],onDelete:Cascade)
+  userId String
+  user User @relation(fields:[userId],references:[id])
+  content String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([prospectId,createdAt])
+}
+model Meeting {
+  id String @id @default(uuid())
+  prospectId String
+  prospect Prospect @relation(fields:[prospectId],references:[id],onDelete:Cascade)
+  title String
+  meetingDate DateTime @db.Date
+  meetingTime String
+  meetingType MeetingType
+  meetingLink String @default("")
+  location String @default("")
+  notes String @default("")
+  status MeetingStatus @default(SCHEDULED)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status,meetingDate])
+  @@index([prospectId])
+}
+model Deal {
+  id String @id @default(uuid())
+  prospectId String
+  prospect Prospect @relation(fields:[prospectId],references:[id],onDelete:Cascade)
+  title String
+  serviceType String
+  value Decimal @db.Decimal(14,2)
+  status DealStatus @default(QUALIFIED)
+  expectedCloseDate DateTime? @db.Date
+  actualCloseDate DateTime? @db.Date
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status,actualCloseDate])
+  @@index([prospectId])
+}
+model Client {
+  id String @id @default(uuid())
+  prospectId String @unique
+  prospect Prospect @relation(fields:[prospectId],references:[id],onDelete:Restrict)
+  businessName String
+  contactPerson String
+  email String?
+  phone String?
+  services String[]
+  projectValue Decimal @db.Decimal(14,2)
+  monthlyRetainer Decimal @default(0) @db.Decimal(14,2)
+  startDate DateTime @default(now())
+  status ClientStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model Outreach {
+  id String @id @default(uuid())
+  prospectId String
+  prospect Prospect @relation(fields:[prospectId],references:[id],onDelete:Cascade)
+  channel Channel
+  message String
+  sentAt DateTime @default(now())
+  response String @default("")
+  responseAt DateTime?
+  positiveReply Boolean @default(false)
+  meetingGenerated Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([prospectId,sentAt])
+  @@index([channel])
+}

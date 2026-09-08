@@ -1,0 +1,13 @@
+node_modules
+**/node_modules
+**/dist
+.git
+.env
+test-results
+playwright-report
+.dependency-resolve
+tests
+.backups
+.vercel
+.env.*
+*.log

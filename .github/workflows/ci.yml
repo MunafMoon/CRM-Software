@@ -1,0 +1,56 @@
+name: CRM checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: crm
+          POSTGRES_PASSWORD: ci-only-not-a-production-secret
+          POSTGRES_DB: crm_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U crm -d crm_test"
+          --health-interval 5s --health-timeout 5s --health-retries 15
+    env:
+      DATABASE_URL: postgresql://crm:ci-only-not-a-production-secret@localhost:5432/crm_test
+      POSTGRES_USER: crm
+      POSTGRES_PASSWORD: ci-only-not-a-production-secret
+      POSTGRES_DB: crm_test
+      JWT_SECRET: ci-only-jwt-secret-at-least-32-characters-long
+      SEED_ADMIN_EMAIL: admin@folio.test
+      SEED_ADMIN_PASSWORD: ci-only-administrator-password
+      NODE_ENV: test
+      WEB_ORIGIN: http://localhost:5173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run db:migrate
+      - run: npm run db:seed
+      - run: npm run build
+      - run: npm run lint
+      - run: npm audit --audit-level=moderate
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - name: Browser workflows
+        run: |
+          npm run dev > /tmp/folio-dev.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://localhost:5173/api/health; then break; fi
+            sleep 1
+          done
+          npx playwright test
+      - name: Docker images
+        run: docker compose build
